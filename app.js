@@ -917,18 +917,25 @@ function attachViewHandlers(){
   document.querySelectorAll('[data-delete-invoice]').forEach(b=>b.addEventListener('click',()=>deleteInvoice(b.getAttribute('data-delete-invoice'))));
   document.querySelectorAll('[data-pdf-action]').forEach(b=>b.addEventListener('click',()=>{
     const inv = DB.invoices.find(i=>i.id===b.getAttribute('data-id'));
-    if(inv) generatePDF(inv, b.getAttribute('data-pdf-action'));
+    if(!inv){ showToast('Could not find this invoice in memory — try reloading the page','error'); return; }
+    try{ generatePDF(inv, b.getAttribute('data-pdf-action')); }
+    catch(err){ console.error(err); showToast('PDF error: '+err.message,'error'); }
   }));
   document.querySelectorAll('[data-whatsapp-send]').forEach(b=>b.addEventListener('click',()=>{
     const inv = DB.invoices.find(i=>i.id===b.getAttribute('data-whatsapp-send'));
-    if(!inv) return;
-    generatePDF(inv,'download');
-    showToast('PDF downloaded — attach it in WhatsApp after the chat opens','info');
-    setTimeout(()=>{
-      const name = firstName(inv.customerName);
-      const msg = `Hello ${name},\n\nThank you for choosing ${DB.settings.companyName}.\n\nPlease find your invoice ${inv.invoiceNumber} attached.\n\nRegards,\n${DB.settings.companyName}`;
-      window.open(`https://wa.me/${normalizePhone(inv.phone)}?text=${encodeURIComponent(msg)}`, '_blank');
-    }, 600);
+    if(!inv){ showToast('Could not find this invoice in memory — try reloading the page','error'); return; }
+    const name = firstName(inv.customerName);
+    const msg = `Hello ${name},\n\nThank you for choosing ${DB.settings.companyName}.\n\nPlease find your invoice ${inv.invoiceNumber} attached.\n\nRegards,\n${DB.settings.companyName}`;
+    // Open WhatsApp immediately (must happen synchronously in the click handler
+    // or most browsers' popup blockers will silently block it).
+    window.open(`https://wa.me/${normalizePhone(inv.phone)}?text=${encodeURIComponent(msg)}`, '_blank');
+    try{
+      generatePDF(inv,'download');
+      showToast('PDF downloaded — attach it in the WhatsApp chat that just opened','info');
+    }catch(err){
+      console.error(err);
+      showToast('WhatsApp opened, but PDF failed: '+err.message,'error');
+    }
   }));
 }
 
@@ -1076,7 +1083,9 @@ function renderHistoryOnly(){
   document.querySelectorAll('[data-delete-invoice]').forEach(b=>b.addEventListener('click',()=>deleteInvoice(b.getAttribute('data-delete-invoice'))));
   document.querySelectorAll('[data-pdf-action]').forEach(b=>b.addEventListener('click',()=>{
     const inv = DB.invoices.find(i=>i.id===b.getAttribute('data-id'));
-    if(inv) generatePDF(inv, b.getAttribute('data-pdf-action'));
+    if(!inv) return;
+    try{ generatePDF(inv, b.getAttribute('data-pdf-action')); }
+    catch(err){ console.error(err); showToast('PDF error: '+err.message,'error'); }
   }));
   // refocus search field with cursor at end
   const el = document.getElementById('historySearchInput');
@@ -1132,10 +1141,17 @@ function attachSettingsHandlers(){
    PDF GENERATION (jsPDF) — generated on demand, never stored
    ========================================================= */
 function generatePDF(inv, action){
+ try{
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    showToast('PDF library failed to load — check your internet connection and reload the page','error');
+    return;
+  }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
   const s = DB.settings;
   const marginX = 15;
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
   let y = 16;
 
   try{ doc.addImage(s.logoDataUrl, 'PNG', marginX, y-4, 20, 20); }catch(err){}
@@ -1175,59 +1191,108 @@ function generatePDF(inv, action){
   y += 5;
   if(inv.email) { doc.text(inv.email, marginX, y); }
   doc.text(`Mileage: ${inv.mileage||'—'}`, 110, y);
-  y += 9;
+  y += 10;
 
-  const rows = inv.items.map(it=>[it.desc, String(it.qty), fmtMoney(it.price), fmtMoney((Number(it.qty)||0)*(Number(it.price)||0))]);
-  doc.autoTable({
-    startY: y,
-    head: [['Description','Qty','Unit Price','Total']],
-    body: rows,
-    theme: 'grid',
-    headStyles: { fillColor:[16,37,75], textColor:255, fontSize:9, fontStyle:'bold' },
-    bodyStyles: { fontSize:9, textColor:[30,40,60] },
-    columnStyles: { 1:{halign:'center',cellWidth:18}, 2:{halign:'right',cellWidth:32}, 3:{halign:'right',cellWidth:32} },
-    margin: { left: marginX, right: marginX },
+  /* ---- Items table, drawn manually (no external plugin needed) ---- */
+  const colX = { desc: marginX, qty: 120, price: 140, total: 168 };
+  const colEnd = 195;
+  const rowH = 7;
+  function ensureSpace(needed){
+    if(y + needed > pageH - 30){
+      doc.addPage();
+      y = 20;
+      return true;
+    }
+    return false;
+  }
+  function drawTableHeader(){
+    doc.setFillColor(16,37,75);
+    doc.rect(marginX, y, colEnd-marginX, rowH, 'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text('Description', colX.desc+3, y+rowH-2.3);
+    doc.text('Qty', colX.qty, y+rowH-2.3);
+    doc.text('Unit Price', colX.price, y+rowH-2.3);
+    doc.text('Total', colX.total, y+rowH-2.3);
+    y += rowH;
+  }
+  drawTableHeader();
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(30,40,60);
+  inv.items.forEach((it, idx)=>{
+    const descLines = doc.splitTextToSize(it.desc || '', 98);
+    const lineH = Math.max(rowH, descLines.length*4.6 + 2.4);
+    if(ensureSpace(lineH)) drawTableHeader();
+    if(idx % 2 === 1){ doc.setFillColor(247,249,252); doc.rect(marginX, y, colEnd-marginX, lineH, 'F'); }
+    doc.setTextColor(30,40,60);
+    doc.text(descLines, colX.desc+3, y+4.6);
+    doc.text(String(it.qty), colX.qty, y+4.6);
+    doc.text(fmtMoney(it.price), colX.price, y+4.6);
+    doc.text(fmtMoney((Number(it.qty)||0)*(Number(it.price)||0)), colX.total, y+4.6);
+    doc.setDrawColor(225,230,240); doc.setLineWidth(0.2);
+    doc.line(marginX, y+lineH, colEnd, y+lineH);
+    y += lineH;
   });
+  y += 8;
 
-  let ty = doc.lastAutoTable.finalY + 8;
+  ensureSpace(40);
   const t = inv.totals;
-  const boxX = 130, boxW = 65;
+  const boxX = 130;
   doc.setFontSize(9.5); doc.setTextColor(80,90,110); doc.setFont('helvetica','normal');
-  doc.text('Subtotal', boxX, ty); doc.text(fmtMoney(t.subtotal), 195, ty, {align:'right'});
-  ty += 5.5;
-  doc.text(`Discount (${inv.discountPercent}%)`, boxX, ty); doc.text('- '+fmtMoney(t.discountAmt), 195, ty, {align:'right'});
-  ty += 5.5;
-  doc.text(`VAT (${inv.vatApplied?s.vatPercent:0}%)`, boxX, ty); doc.text(fmtMoney(t.vatAmt), 195, ty, {align:'right'});
-  ty += 4;
-  doc.setDrawColor(16,37,75); doc.line(boxX, ty, 195, ty);
-  ty += 5.5;
+  doc.text('Subtotal', boxX, y); doc.text(fmtMoney(t.subtotal), 195, y, {align:'right'});
+  y += 5.5;
+  doc.text(`Discount (${inv.discountPercent}%)`, boxX, y); doc.text('- '+fmtMoney(t.discountAmt), 195, y, {align:'right'});
+  y += 5.5;
+  doc.text(`VAT (${inv.vatApplied?s.vatPercent:0}%)`, boxX, y); doc.text(fmtMoney(t.vatAmt), 195, y, {align:'right'});
+  y += 4;
+  doc.setDrawColor(16,37,75); doc.line(boxX, y, 195, y);
+  y += 5.5;
   doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(16,37,75);
-  doc.text('Grand Total', boxX, ty); doc.text(fmtMoney(t.grandTotal), 195, ty, {align:'right'});
+  doc.text('Grand Total', boxX, y); doc.text(fmtMoney(t.grandTotal), 195, y, {align:'right'});
 
-  ty += 12;
+  y += 12;
+  ensureSpace(20);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,70,90);
-  doc.text(`Payment Method: ${inv.paymentMethod}`, marginX, ty);
+  doc.text(`Payment Method: ${inv.paymentMethod}`, marginX, y);
   if(inv.notes){
-    ty += 6;
+    y += 6;
     const noteLines = doc.splitTextToSize(`Notes: ${inv.notes}`, 180);
-    doc.text(noteLines, marginX, ty);
-    ty += noteLines.length*4.5;
+    ensureSpace(noteLines.length*4.5);
+    doc.text(noteLines, marginX, y);
+    y += noteLines.length*4.5;
   }
 
-  const pageH = doc.internal.pageSize.getHeight();
-  const footY = Math.max(ty+16, pageH-28);
+  const footY = Math.max(y+16, pageH-28);
+  if(footY > pageH-15){ doc.addPage(); y = 20; }
+  const finalFootY = Math.min(footY, pageH-15);
   doc.setDrawColor(220,225,235); doc.setLineWidth(0.3);
-  doc.line(marginX, footY-6, 195, footY-6);
+  doc.line(marginX, finalFootY-6, 195, finalFootY-6);
   doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(16,37,75);
-  doc.text(`Thank you for choosing ${s.companyName}`, 105, footY, {align:'center'});
+  doc.text(`Thank you for choosing ${s.companyName}`, 105, finalFootY, {align:'center'});
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(140,150,170);
-  doc.text(`${s.tagline} · This is a computer-generated invoice.`, 105, footY+5, {align:'center'});
+  doc.text(`${s.tagline} · This is a computer-generated invoice.`, 105, finalFootY+5, {align:'center'});
 
   const filename = `${inv.invoiceNumber}_${inv.customerName.replace(/\s+/g,'_')}.pdf`;
   if(action==='download'){ doc.save(filename); showToast('PDF downloaded','success'); }
   else if(action==='print'){ doc.autoPrint(); window.open(doc.output('bloburl'), '_blank'); }
   else { window.open(doc.output('bloburl'), '_blank'); }
+ }catch(err){
+  console.error('PDF generation failed:', err);
+  showToast('PDF failed: '+(err && err.message ? err.message : 'unknown error'), 'error');
+ }
 }
+
+/* =========================================================
+   GLOBAL ERROR SURFACING
+   Any otherwise-silent JS error shows up as a toast, so issues
+   can be diagnosed without opening the browser console.
+   ========================================================= */
+window.addEventListener('error', (e)=>{
+  console.error('Uncaught error:', e.error || e.message);
+  showToast('Error: ' + (e.error && e.error.message ? e.error.message : e.message), 'error');
+});
+window.addEventListener('unhandledrejection', (e)=>{
+  console.error('Unhandled promise rejection:', e.reason);
+  showToast('Error: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)), 'error');
+});
 
 /* =========================================================
    BOOTSTRAP
