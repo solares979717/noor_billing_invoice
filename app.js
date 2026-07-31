@@ -33,8 +33,10 @@ const ICONS = {
 
 const DEFAULT_SETTINGS = {
   companyName: "Noor Mechanical Engineering Services Est.",
+  companyNameArabic: "مؤسسة نور للخدمات الميكانيكية الهندسية",
   tagline: "Dubai's Trusted Automotive Repair Specialists",
   address: "Ras Al Khor Industrial Area 1, Near 5 Street & 16A Street, Dubai, United Arab Emirates",
+  addressArabic: "منطقة رأس الخور الصناعية 1، بالقرب من شارع 5 وشارع 16أ، دبي، الإمارات العربية المتحدة",
   phone: "+971 50 630 6014",
   whatsapp: "+971 55 544 9111",
   email: "Amjadkhan959515@gmail.com",
@@ -45,6 +47,33 @@ const DEFAULT_SETTINGS = {
   invoiceSeq: 0,
   logoDataUrl: "data:image/png;base64," + LOGO_B64,
   passcode: "noor2026"
+};
+
+/* Fixed bilingual invoice vocabulary — matches the wording already used
+   on the company's existing printed invoice books, for consistency. */
+const AR = {
+  taxInvoice: 'فاتورة ضريبية',
+  invoiceNo: 'رقم الفاتورة',
+  date: 'التاريخ',
+  customer: 'السيد / السادة',
+  phone: 'الهاتف',
+  vehicle: 'المركبة',
+  plate: 'رقم اللوحة',
+  mileage: 'الممشى',
+  description: 'التفاصيل',
+  qty: 'الكمية',
+  unitPrice: 'السعر',
+  amount: 'المبلغ',
+  subtotal: 'المجموع',
+  discount: 'الخصم',
+  vat: 'الضريبة',
+  grandTotal: 'المبلغ الإجمالي',
+  paymentMethod: 'طريقة الدفع',
+  paymentStatus: 'حالة الدفع',
+  notes: 'ملاحظات',
+  thankYou: 'شكراً لتعاملكم معنا',
+  signature: 'التوقيع',
+  trn: 'الرقم الضريبي',
 };
 
 let DB = { settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), invoices: [] };
@@ -78,7 +107,8 @@ function initSupabase(){
 /* map DB (snake_case) <-> app state (camelCase) */
 function settingsFromRow(row){
   return {
-    companyName: row.company_name, tagline: row.tagline, address: row.address,
+    companyName: row.company_name, companyNameArabic: row.company_name_ar || DEFAULT_SETTINGS.companyNameArabic,
+    tagline: row.tagline, address: row.address, addressArabic: row.address_ar || DEFAULT_SETTINGS.addressArabic,
     phone: row.phone, whatsapp: row.whatsapp, email: row.email, vatNumber: row.vat_number,
     vatPercent: Number(row.vat_percent), currency: row.currency, invoicePrefix: row.invoice_prefix,
     invoiceSeq: row.invoice_seq, logoDataUrl: row.logo_url || DEFAULT_SETTINGS.logoDataUrl,
@@ -86,7 +116,8 @@ function settingsFromRow(row){
 }
 function settingsToRow(s){
   return {
-    id: 1, company_name: s.companyName, tagline: s.tagline, address: s.address,
+    id: 1, company_name: s.companyName, company_name_ar: s.companyNameArabic, tagline: s.tagline,
+    address: s.address, address_ar: s.addressArabic,
     phone: s.phone, whatsapp: s.whatsapp, email: s.email, vat_number: s.vatNumber,
     vat_percent: s.vatPercent, currency: s.currency, invoice_prefix: s.invoicePrefix,
     invoice_seq: s.invoiceSeq, logo_url: s.logoDataUrl,
@@ -621,48 +652,61 @@ function renderDocHTML(inv){
         <img src="${DB.settings.logoDataUrl}" alt="logo">
         <div>
           <div class="co-name">${esc(DB.settings.companyName)}</div>
+          ${DB.settings.companyNameArabic?`<div class="co-name ar" dir="rtl">${esc(DB.settings.companyNameArabic)}</div>`:''}
           <div class="co-meta">${esc(DB.settings.address)}<br>
           Tel: ${esc(DB.settings.phone)} &nbsp;|&nbsp; ${esc(DB.settings.email)}
-          ${DB.settings.vatNumber?`<br>TRN: ${esc(DB.settings.vatNumber)}`:''}</div>
+          ${DB.settings.vatNumber?`<br>TRN / ${AR.trn}: ${esc(DB.settings.vatNumber)}`:''}</div>
         </div>
       </div>
       <div class="inv-meta">
         <div class="inv-tag mono">${esc(inv.invoiceNumber)}</div>
-        <div class="inv-date">Date: ${fmtDate(inv.date)}</div>
+        <div class="inv-date" style="margin-top:4px;">
+          <span class="ar" dir="rtl">${AR.taxInvoice}</span> · TAX INVOICE
+        </div>
+        <div class="inv-date">
+          <span class="ar" dir="rtl">${AR.date}</span> / Date: ${fmtDate(inv.date)}
+        </div>
         <div class="inv-date">${statusBadge(inv.paymentStatus)}</div>
       </div>
     </div>
     <div class="doc-grid2">
       <div class="doc-box">
-        <div class="h">Customer</div>
+        <div class="h bi-label"><span class="ar" dir="rtl">${AR.customer}</span><span class="en">Customer</span></div>
         <div class="r"><b>${esc(inv.customerName)}</b></div>
         <div class="r">${esc(inv.phone)}</div>
         ${inv.email?`<div class="r">${esc(inv.email)}</div>`:''}
       </div>
       <div class="doc-box">
-        <div class="h">Vehicle</div>
+        <div class="h bi-label"><span class="ar" dir="rtl">${AR.vehicle}</span><span class="en">Vehicle</span></div>
         <div class="r">${esc(inv.vehicleBrand||'—')} ${esc(inv.vehicleModel||'')}</div>
-        <div class="r">Plate: ${esc(inv.plateNumber||'—')}</div>
-        <div class="r">Mileage: ${esc(inv.mileage||'—')}</div>
+        <div class="r">${AR.plate} / Plate: ${esc(inv.plateNumber||'—')}</div>
+        <div class="r">${AR.mileage} / Mileage: ${esc(inv.mileage||'—')}</div>
       </div>
     </div>
     <table class="doc-table">
-      <thead><tr><th style="width:52%;">Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+      <thead><tr>
+        <th style="width:46%;"><span class="ar" dir="rtl">${AR.description}</span>Description</th>
+        <th><span class="ar" dir="rtl">${AR.qty}</span>Qty</th>
+        <th><span class="ar" dir="rtl">${AR.unitPrice}</span>Unit Price</th>
+        <th><span class="ar" dir="rtl">${AR.amount}</span>Total</th>
+      </tr></thead>
       <tbody>
         ${inv.items.map(it=>`<tr><td>${esc(it.desc)}</td><td>${it.qty}</td><td>${fmtMoney(it.price)}</td><td>${fmtMoney((Number(it.qty)||0)*(Number(it.price)||0))}</td></tr>`).join('')}
       </tbody>
     </table>
     <div class="doc-totals">
-      <div class="ln"><span>Subtotal</span><span>${fmtMoney(t.subtotal)}</span></div>
-      <div class="ln"><span>Discount (${inv.discountPercent}%)</span><span>- ${fmtMoney(t.discountAmt)}</span></div>
-      <div class="ln"><span>VAT (${inv.vatApplied?DB.settings.vatPercent:0}%)</span><span>${fmtMoney(t.vatAmt)}</span></div>
-      <div class="gt"><span>Grand Total</span><span>${fmtMoney(t.grandTotal)}</span></div>
+      <div class="ln"><span><span class="ar" dir="rtl">${AR.subtotal}</span> / Subtotal</span><span>${fmtMoney(t.subtotal)}</span></div>
+      <div class="ln"><span><span class="ar" dir="rtl">${AR.discount}</span> / Discount (${inv.discountPercent}%)</span><span>- ${fmtMoney(t.discountAmt)}</span></div>
+      <div class="ln"><span><span class="ar" dir="rtl">${AR.vat}</span> / VAT (${inv.vatApplied?DB.settings.vatPercent:0}%)</span><span>${fmtMoney(t.vatAmt)}</span></div>
+      <div class="gt"><span><span class="ar" dir="rtl">${AR.grandTotal}</span> / Grand Total</span><span>${fmtMoney(t.grandTotal)}</span></div>
     </div>
     <div style="margin-top:14px;font-size:12px;color:#555;">
-      Payment Method: <b>${esc(inv.paymentMethod)}</b>
-      ${inv.notes?`<br>Notes: ${esc(inv.notes)}`:''}
+      <span class="ar" dir="rtl">${AR.paymentMethod}</span> / Payment Method: <b>${esc(inv.paymentMethod)}</b>
+      ${inv.notes?`<br><span class="ar" dir="rtl">${AR.notes}</span> / Notes: ${esc(inv.notes)}`:''}
+      <br><span class="ar" dir="rtl">${AR.signature}</span> / Signature: ______________________
     </div>
     <div class="doc-footer">
+      <div class="thanks ar" dir="rtl">${AR.thankYou}</div>
       <div class="thanks">Thank you for choosing ${esc(DB.settings.companyName)}</div>
       <div class="fine">${esc(DB.settings.tagline)} · This is a computer-generated invoice.</div>
     </div>`;
@@ -852,8 +896,10 @@ function renderSettings(){
     <div class="panel-head"><h3>${ICONS.dashboard} Company Profile</h3></div>
     <div class="form-grid">
       <div class="field" style="grid-column:1/-1;"><label>Company Name</label><input class="input" id="s_companyName" value="${esc(s.companyName)}"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Company Name (Arabic) — shown on invoices for UAE compliance</label><input class="input ar" dir="rtl" id="s_companyNameArabic" value="${esc(s.companyNameArabic)}"></div>
       <div class="field" style="grid-column:1/-1;"><label>Tagline</label><input class="input" id="s_tagline" value="${esc(s.tagline)}"></div>
       <div class="field" style="grid-column:1/-1;"><label>Address</label><textarea class="input" id="s_address">${esc(s.address)}</textarea></div>
+      <div class="field" style="grid-column:1/-1;"><label>Address (Arabic)</label><textarea class="input ar" dir="rtl" id="s_addressArabic">${esc(s.addressArabic)}</textarea></div>
       <div class="field"><label>Phone</label><input class="input" id="s_phone" value="${esc(s.phone)}"></div>
       <div class="field"><label>CEO WhatsApp</label><input class="input" id="s_whatsapp" value="${esc(s.whatsapp)}"></div>
       <div class="field"><label>Email</label><input class="input" id="s_email" value="${esc(s.email)}"></div>
@@ -1121,8 +1167,10 @@ function attachSettingsHandlers(){
   document.getElementById('settingsForm').addEventListener('submit', (e)=>{
     e.preventDefault();
     DB.settings.companyName = document.getElementById('s_companyName').value.trim();
+    DB.settings.companyNameArabic = document.getElementById('s_companyNameArabic').value.trim();
     DB.settings.tagline = document.getElementById('s_tagline').value.trim();
     DB.settings.address = document.getElementById('s_address').value.trim();
+    DB.settings.addressArabic = document.getElementById('s_addressArabic').value.trim();
     DB.settings.phone = document.getElementById('s_phone').value.trim();
     DB.settings.whatsapp = document.getElementById('s_whatsapp').value.trim();
     DB.settings.email = document.getElementById('s_email').value.trim();
@@ -1138,49 +1186,104 @@ function attachSettingsHandlers(){
 }
 
 /* =========================================================
-   PDF GENERATION (jsPDF) — generated on demand, never stored
+   ARABIC TEXT RENDERING FOR PDF
+   jsPDF cannot shape Arabic script on its own, so we render
+   Arabic text on an offscreen canvas (the browser shapes it
+   correctly) and drop the result into the PDF as an image.
    ========================================================= */
-function generatePDF(inv, action){
+function renderArabicPNG(text, opts){
+  opts = opts || {};
+  const fontPx = opts.fontPx || 64, weight = opts.weight || 700, color = opts.color || '#10254B';
+  const canvas = document.createElement('canvas');
+  let ctx = canvas.getContext('2d');
+  ctx.font = `${weight} ${fontPx}px Cairo, sans-serif`;
+  const metrics = ctx.measureText(text);
+  const padX = fontPx*0.12;
+  const w = Math.max(1, Math.ceil(metrics.width + padX*2));
+  const h = Math.ceil(fontPx*1.5);
+  canvas.width = w; canvas.height = h;
+  ctx = canvas.getContext('2d'); // context resets after resizing canvas
+  ctx.font = `${weight} ${fontPx}px Cairo, sans-serif`;
+  ctx.fillStyle = color;
+  ctx.direction = 'rtl';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, w - padX, h/2);
+  return { url: canvas.toDataURL('image/png'), w, h };
+}
+function addArabic(doc, text, xMM, yTopMM, heightMM, align, opts){
+  const png = renderArabicPNG(text, opts);
+  const mmW = (png.w/png.h) * heightMM;
+  let x = xMM;
+  if(align==='right') x = xMM - mmW;
+  else if(align==='center') x = xMM - mmW/2;
+  doc.addImage(png.url, 'PNG', x, yTopMM, mmW, heightMM);
+  return mmW;
+}
+async function ensureArabicFontLoaded(){
+  try{
+    await document.fonts.load('700 64px Cairo');
+    await document.fonts.load('400 64px Cairo');
+    await document.fonts.ready;
+  }catch(e){ /* if this fails, canvas falls back to a default font */ }
+}
+
+/* =========================================================
+   PDF GENERATION (jsPDF) — bilingual Arabic + English,
+   generated on demand, never stored
+   ========================================================= */
+async function generatePDF(inv, action){
  try{
   if(!window.jspdf || !window.jspdf.jsPDF){
     showToast('PDF library failed to load — check your internet connection and reload the page','error');
     return;
   }
+  await ensureArabicFontLoaded();
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
   const s = DB.settings;
   const marginX = 15;
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  let y = 16;
+  let y = 14;
 
-  try{ doc.addImage(s.logoDataUrl, 'PNG', marginX, y-4, 20, 20); }catch(err){}
+  try{ doc.addImage(s.logoDataUrl, 'PNG', marginX, y-3, 18, 18); }catch(err){}
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(16,37,75);
-  doc.text(s.companyName, marginX+24, y+1);
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(90,100,120);
-  doc.text(s.tagline, marginX+24, y+6);
-  const addrLines = doc.splitTextToSize(s.address, 95);
-  doc.text(addrLines, marginX+24, y+11);
-  doc.text(`Tel: ${s.phone}  |  ${s.email}`, marginX+24, y+11+addrLines.length*3.6);
-  if(s.vatNumber) doc.text(`TRN: ${s.vatNumber}`, marginX+24, y+15+addrLines.length*3.6);
+  doc.setFont('helvetica','bold'); doc.setFontSize(12.5); doc.setTextColor(16,37,75);
+  doc.text(s.companyName, marginX+22, y+1);
+  if(s.companyNameArabic) addArabic(doc, s.companyNameArabic, 195, y-3.5, 5, 'right', {weight:700});
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(90,100,120);
+  doc.text(s.tagline, marginX+22, y+5.5);
+  const addrLines = doc.splitTextToSize(s.address, 90);
+  doc.text(addrLines, marginX+22, y+10);
+  let afterAddrY = y+10+addrLines.length*3.5;
+  doc.text(`Tel: ${s.phone}  |  ${s.email}`, marginX+22, afterAddrY);
+  afterAddrY += 4;
+  if(s.vatNumber){ doc.text(`TRN: ${s.vatNumber}`, marginX+22, afterAddrY); }
+  if(s.addressArabic) addArabic(doc, s.addressArabic, 195, y+3, 3.6, 'right', {weight:400,color:'#5a6478'});
+
+  addArabic(doc, AR.taxInvoice, 195, y+8.5, 4.4, 'right', {weight:700,color:'#5a6478'});
 
   doc.setFillColor(16,37,75);
-  doc.roundedRect(140, y-2, 55, 9, 1.5, 1.5, 'F');
+  doc.roundedRect(140, y+13, 55, 9, 1.5, 1.5, 'F');
   doc.setTextColor(255,255,255); doc.setFont('courier','bold'); doc.setFontSize(11);
-  doc.text(inv.invoiceNumber, 167.5, y+4, {align:'center'});
-  doc.setTextColor(90,100,120); doc.setFont('helvetica','normal'); doc.setFontSize(9);
-  doc.text(`Date: ${fmtDate(inv.date)}`, 195, y+11, {align:'right'});
-  doc.text(`Status: ${inv.paymentStatus}`, 195, y+16, {align:'right'});
+  doc.text(inv.invoiceNumber, 167.5, y+18.7, {align:'center'});
 
-  y = 42;
+  y = 48;
   doc.setDrawColor(16,37,75); doc.setLineWidth(0.6);
   doc.line(marginX, y, 195, y);
-  y += 7;
+  y += 6;
+  doc.setFontSize(9); doc.setTextColor(90,100,120); doc.setFont('helvetica','normal');
+  doc.text(`Date: ${fmtDate(inv.date)}`, marginX, y);
+  addArabic(doc, AR.date, marginX+22, y-3, 3.6, 'left', {weight:700,color:'#5a6478'});
+  doc.text(`Status: ${inv.paymentStatus}`, 195, y, {align:'right'});
+  y += 8;
 
   doc.setFontSize(8); doc.setTextColor(130,140,160); doc.setFont('helvetica','bold');
   doc.text('CUSTOMER', marginX, y);
+  addArabic(doc, AR.customer, marginX+22, y-3, 3.4, 'left', {weight:700,color:'#828fa8'});
   doc.text('VEHICLE', 110, y);
+  addArabic(doc, AR.vehicle, 110+18, y-3, 3.4, 'left', {weight:700,color:'#828fa8'});
   y += 5;
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(30,40,60);
   doc.text(inv.customerName, marginX, y);
@@ -1193,10 +1296,11 @@ function generatePDF(inv, action){
   doc.text(`Mileage: ${inv.mileage||'—'}`, 110, y);
   y += 10;
 
-  /* ---- Items table, drawn manually (no external plugin needed) ---- */
+  /* ---- Items table, drawn manually with bilingual header ---- */
   const colX = { desc: marginX, qty: 120, price: 140, total: 168 };
   const colEnd = 195;
   const rowH = 7;
+  const headerH = 11;
   function ensureSpace(needed){
     if(y + needed > pageH - 30){
       doc.addPage();
@@ -1207,13 +1311,18 @@ function generatePDF(inv, action){
   }
   function drawTableHeader(){
     doc.setFillColor(16,37,75);
-    doc.rect(marginX, y, colEnd-marginX, rowH, 'F');
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9);
-    doc.text('Description', colX.desc+3, y+rowH-2.3);
-    doc.text('Qty', colX.qty, y+rowH-2.3);
-    doc.text('Unit Price', colX.price, y+rowH-2.3);
-    doc.text('Total', colX.total, y+rowH-2.3);
-    y += rowH;
+    doc.rect(marginX, y, colEnd-marginX, headerH, 'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+    const enY = y+headerH-2.2;
+    doc.text('Description', colX.desc+3, enY);
+    doc.text('Qty', colX.qty, enY);
+    doc.text('Unit Price', colX.price, enY);
+    doc.text('Total', colX.total, enY);
+    addArabic(doc, AR.description, colX.desc+3, y+1.3, 3.6, 'left', {weight:700,color:'#ffffff'});
+    addArabic(doc, AR.qty, colX.qty, y+1.3, 3.6, 'left', {weight:700,color:'#ffffff'});
+    addArabic(doc, AR.unitPrice, colX.price, y+1.3, 3.6, 'left', {weight:700,color:'#ffffff'});
+    addArabic(doc, AR.amount, colX.total, y+1.3, 3.6, 'left', {weight:700,color:'#ffffff'});
+    y += headerH;
   }
   drawTableHeader();
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(30,40,60);
@@ -1233,25 +1342,30 @@ function generatePDF(inv, action){
   });
   y += 8;
 
-  ensureSpace(40);
+  ensureSpace(46);
   const t = inv.totals;
   const boxX = 130;
   doc.setFontSize(9.5); doc.setTextColor(80,90,110); doc.setFont('helvetica','normal');
   doc.text('Subtotal', boxX, y); doc.text(fmtMoney(t.subtotal), 195, y, {align:'right'});
+  addArabic(doc, AR.subtotal, boxX-3, y-3, 3.6, 'right', {weight:700,color:'#8493a8'});
   y += 5.5;
   doc.text(`Discount (${inv.discountPercent}%)`, boxX, y); doc.text('- '+fmtMoney(t.discountAmt), 195, y, {align:'right'});
+  addArabic(doc, AR.discount, boxX-3, y-3, 3.6, 'right', {weight:700,color:'#8493a8'});
   y += 5.5;
   doc.text(`VAT (${inv.vatApplied?s.vatPercent:0}%)`, boxX, y); doc.text(fmtMoney(t.vatAmt), 195, y, {align:'right'});
+  addArabic(doc, AR.vat, boxX-3, y-3, 3.6, 'right', {weight:700,color:'#8493a8'});
   y += 4;
   doc.setDrawColor(16,37,75); doc.line(boxX, y, 195, y);
-  y += 5.5;
+  y += 6;
   doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(16,37,75);
   doc.text('Grand Total', boxX, y); doc.text(fmtMoney(t.grandTotal), 195, y, {align:'right'});
+  addArabic(doc, AR.grandTotal, boxX-3, y-4, 4.4, 'right', {weight:700,color:'#10254B'});
 
   y += 12;
-  ensureSpace(20);
+  ensureSpace(24);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,70,90);
   doc.text(`Payment Method: ${inv.paymentMethod}`, marginX, y);
+  addArabic(doc, AR.paymentMethod, marginX, y-3.4, 3.4, 'left', {weight:700,color:'#8493a8'});
   if(inv.notes){
     y += 6;
     const noteLines = doc.splitTextToSize(`Notes: ${inv.notes}`, 180);
@@ -1259,15 +1373,23 @@ function generatePDF(inv, action){
     doc.text(noteLines, marginX, y);
     y += noteLines.length*4.5;
   }
+  y += 10;
+  ensureSpace(10);
+  doc.setDrawColor(200,206,220); doc.setLineWidth(0.2);
+  doc.line(marginX, y, marginX+60, y);
+  doc.setFontSize(8); doc.setTextColor(120,130,150);
+  doc.text('Signature', marginX, y+4);
+  addArabic(doc, AR.signature, marginX+60, y-4.2, 3.4, 'right', {weight:700,color:'#78869c'});
 
-  const footY = Math.max(y+16, pageH-28);
+  const footY = Math.max(y+18, pageH-30);
   if(footY > pageH-15){ doc.addPage(); y = 20; }
-  const finalFootY = Math.min(footY, pageH-15);
+  const finalFootY = Math.min(footY, pageH-17);
   doc.setDrawColor(220,225,235); doc.setLineWidth(0.3);
-  doc.line(marginX, finalFootY-6, 195, finalFootY-6);
-  doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(16,37,75);
+  doc.line(marginX, finalFootY-8, 195, finalFootY-8);
+  addArabic(doc, AR.thankYou, 105, finalFootY-6.5, 4.4, 'center', {weight:700,color:'#10254B'});
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(16,37,75);
   doc.text(`Thank you for choosing ${s.companyName}`, 105, finalFootY, {align:'center'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(140,150,170);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(140,150,170);
   doc.text(`${s.tagline} · This is a computer-generated invoice.`, 105, finalFootY+5, {align:'center'});
 
   const filename = `${inv.invoiceNumber}_${inv.customerName.replace(/\s+/g,'_')}.pdf`;

@@ -64,7 +64,17 @@ Your live URL will look like `https://noor-billing-pro.vercel.app`.
 ### If you ever need to change the keys later
 Go to your Vercel project → **Settings → Environment Variables** → update the values → then **Deployments → Redeploy**. No need to touch GitHub or any file.
 
-## That's it
+## Bilingual invoices (Arabic + English)
+
+To comply with UAE invoicing requirements, invoices are now bilingual — matching the wording already used on your existing printed invoice books (التفاصيل, الكمية, السعر, المبلغ, المجموع, الضريبة, etc.) on both the on-screen invoice and the generated PDF.
+
+After deploying, go to **Settings** and fill in:
+- **Company Name (Arabic)**
+- **Address (Arabic)**
+
+A sensible default translation is pre-filled, but please review it for accuracy before relying on it for compliance.
+
+
 
 Log in with the email/password you created in Step 3. Every invoice, setting, and login now lives in your real Supabase database — accessible from any device, any staff member, synced automatically.
 

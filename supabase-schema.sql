@@ -16,8 +16,10 @@ create extension if not exists "pgcrypto";
 create table if not exists public.settings (
   id int primary key default 1,
   company_name text default 'Noor Mechanical Engineering Services Est.',
+  company_name_ar text default 'مؤسسة نور للخدمات الميكانيكية الهندسية',
   tagline text default 'Dubai''s Trusted Automotive Repair Specialists',
   address text default 'Ras Al Khor Industrial Area 1, Near 5 Street & 16A Street, Dubai, United Arab Emirates',
+  address_ar text default 'منطقة رأس الخور الصناعية 1، بالقرب من شارع 5 وشارع 16أ، دبي، الإمارات العربية المتحدة',
   phone text default '+971 50 630 6014',
   whatsapp text default '+971 55 544 9111',
   email text default 'Amjadkhan959515@gmail.com',
@@ -29,6 +31,9 @@ create table if not exists public.settings (
   logo_url text,
   constraint single_row check (id = 1)
 );
+-- Safe to re-run: adds the Arabic columns if this table already existed from an earlier version.
+alter table public.settings add column if not exists company_name_ar text;
+alter table public.settings add column if not exists address_ar text;
 insert into public.settings (id) values (1) on conflict (id) do nothing;
 
 -- ---------------------------------------------------------

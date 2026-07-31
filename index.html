@@ -5,10 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Noor Billing Pro</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf-autotable.min.js"></script>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <style>
 :root{
@@ -39,6 +38,7 @@ body{
 }
 h1,h2,h3,.brand-font{font-family:'Space Grotesk',sans-serif;}
 .mono{font-family:'JetBrains Mono',monospace;}
+.ar{font-family:'Cairo',sans-serif;direction:rtl;unicode-bidi:isolate;}
 ::selection{background:var(--amber-100);color:var(--navy-900);}
 a{color:inherit;}
 button{font-family:inherit;cursor:pointer;}
@@ -222,6 +222,10 @@ html[data-theme="dark"] .data-table tr:hover td{background:var(--ice-100);}
 .doc-box .r{font-size:12.5px;color:#233;padding:2px 0;}
 .doc-table{width:100%;border-collapse:collapse;margin-top:8px;}
 .doc-table th{background:var(--navy-900);color:#fff;font-size:10.5px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.doc-table th .ar{display:block;font-size:11px;text-transform:none;font-weight:700;margin-bottom:1px;direction:rtl;}
+.bi-label{display:flex;flex-direction:column;gap:1px;}
+.bi-label .ar{font-size:11.5px;font-weight:700;color:#233;}
+.bi-label .en{font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:#8493a8;}
 .doc-table td{padding:8px 10px;font-size:12.5px;border-bottom:1px solid #e7ebf2;}
 .doc-totals{margin-left:auto;width:250px;margin-top:14px;}
 .doc-totals .ln{display:flex;justify-content:space-between;font-size:12px;color:#555;padding:3px 0;}
