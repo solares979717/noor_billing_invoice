@@ -101,7 +101,23 @@ function initSupabase(){
       </div></div>`;
     throw new Error('Supabase not configured');
   }
+  if(!window.supabase || typeof window.supabase.createClient !== 'function'){
+    document.getElementById('app').innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a1730;color:#fff;font-family:Inter,sans-serif;padding:30px;text-align:center;">
+      <div style="max-width:480px;">
+        <h2 style="font-family:'Space Grotesk';">Connection library failed to load</h2>
+        <p style="color:#93a3bd;font-size:14px;">This is usually a slow connection or an ad-blocker/extension blocking cdn.jsdelivr.net. Please reload the page. If it keeps happening, try disabling browser extensions or a different network.</p>
+        <button onclick="location.reload()" style="margin-top:16px;padding:10px 20px;border-radius:9px;border:none;background:#F5A623;color:#0a1730;font-weight:700;cursor:pointer;">Reload Page</button>
+      </div></div>`;
+    throw new Error('Supabase JS library not loaded');
+  }
   sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+}
+function requireSupabase(){
+  if(!sb){
+    showToast('Not connected to Supabase yet — please reload the page and try again.', 'error');
+    return false;
+  }
+  return true;
 }
 
 /* map DB (snake_case) <-> app state (camelCase) */
@@ -284,20 +300,29 @@ function attachLoginHandlers(){
   const f = document.getElementById('loginForm');
   f.addEventListener('submit', async (e)=>{
     e.preventDefault();
+    if(!requireSupabase()) return;
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPass').value;
     const btn = document.getElementById('loginSubmitBtn');
     btn.disabled = true; btn.textContent = 'Signing in…';
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if(error){
-      ui.loginError = error.message;
+    try{
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if(error){
+        ui.loginError = error.message;
+        render();
+        return;
+      }
+      session.loggedIn = true;
+      ui.loginError = '';
+      await loadDB();
+      setView('dashboard');
+    }catch(err){
+      console.error('Login failed:', err);
+      ui.loginError = 'Sign-in failed: ' + (err && err.message ? err.message : 'unknown error');
       render();
-      return;
+    }finally{
+      if(btn){ btn.disabled = false; btn.textContent = 'Sign In to Noor Billing Pro'; }
     }
-    session.loggedIn = true;
-    ui.loginError = '';
-    await loadDB();
-    setView('dashboard');
   });
   document.getElementById('forgotBtn').addEventListener('click', async ()=>{
     const email = document.getElementById('loginEmail').value.trim();
@@ -1421,11 +1446,27 @@ window.addEventListener('unhandledrejection', (e)=>{
    ========================================================= */
 async function init(){
   document.getElementById('app').innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--navy-950);color:#fff;font-family:'Space Grotesk';font-size:14px;">Loading Noor Billing Pro…</div>`;
-  initSupabase();
-  const { data: { session: existingSession } } = await sb.auth.getSession();
-  if(existingSession){
-    session.loggedIn = true;
-    await loadDB();
+  try{
+    initSupabase();
+    const { data: { session: existingSession } } = await sb.auth.getSession();
+    if(existingSession){
+      // getSession() only reads the locally cached token — it doesn't confirm the
+      // user still exists. getUser() makes a real server check, so a deleted or
+      // otherwise invalid account doesn't leave the app stuck in a broken state.
+      const { data: userData, error: userErr } = await sb.auth.getUser();
+      if(userErr || !userData || !userData.user){
+        await sb.auth.signOut();
+        session.loggedIn = false;
+      } else {
+        session.loggedIn = true;
+        await loadDB();
+      }
+    }
+  }catch(err){
+    console.error('Startup check failed:', err);
+    try{ await sb.auth.signOut(); }catch(e2){}
+    session.loggedIn = false;
+    ui.loginError = 'Your previous session was invalid, so you were signed out. Please sign in again.';
   }
   render();
 }
