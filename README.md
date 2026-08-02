@@ -2,17 +2,22 @@
 
 **Noor Mechanical Engineering Services Est.** — Ras Al Khor Industrial Area 1, Dubai, UAE
 
-This version is wired to a **real Supabase database** and **real Supabase Auth login** — no more browser-only demo storage. Deploy it exactly the way you normally do:
+This version is wired to a **real Supabase database** and **real Supabase Auth login**, and now has a **public landing page separate from the staff portal**:
+
+- `yourdomain.com` → public landing page for customers (services, contact, WhatsApp, map)
+- `yourdomain.com/admin` → staff login + the billing system
 
 ## Files in this folder
 
 | File | Purpose |
 |---|---|
-| `index.html` | The app (UI + styling) |
-| `app.js` | All app logic — now saving/loading real data via Supabase |
-| `config.js` | Placeholder file — auto-filled by Vercel during deploy, you don't need to edit it |
-| `build.js` | Small script Vercel runs to write your keys into `config.js` at deploy time |
-| `vercel.json` | Tells Vercel to run `build.js` automatically |
+| `index.html` | Public landing page — this is what customers see |
+| `logo.png` | Logo used on the landing page |
+| `admin/index.html` | Staff portal (UI + styling) |
+| `admin/app.js` | All app logic — saving/loading real data via Supabase |
+| `admin/config.js` | Placeholder file — auto-filled by Vercel during deploy, you don't need to edit it |
+| `build.js` | Small script Vercel runs to write your keys into `admin/config.js` at deploy time |
+| `vercel.json` | Tells Vercel to run `build.js` and routes `/admin` correctly |
 | `package.json` | Lets Vercel recognize this as a buildable project |
 | `supabase-schema.sql` | Run this once in Supabase to create your tables |
 
@@ -40,13 +45,13 @@ This version is wired to a **real Supabase database** and **real Supabase Auth l
 3. Copy the **anon public** key
 4. Keep these two values somewhere handy — you'll paste them directly into Vercel in Step 6 (not into any file)
 
-## Step 5 — Push to GitHub (config.js stays with placeholder text — that's fine)
+## Step 5 — Push to GitHub (admin/config.js stays with placeholder text — that's fine)
 
 1. Open **GitHub Desktop** → Add this folder as a new repository
-2. Commit all files (`index.html`, `app.js`, `config.js`, `build.js`, `vercel.json`, `package.json`, `supabase-schema.sql`)
+2. Commit all files (`index.html`, `logo.png`, `admin/index.html`, `admin/app.js`, `admin/config.js`, `build.js`, `vercel.json`, `package.json`, `supabase-schema.sql`)
 3. Publish the repository to GitHub
 
-You do **not** need to edit `config.js` by hand. It will be filled in automatically during deployment using the method below — so your real Supabase keys never get committed to GitHub.
+You do **not** need to edit `admin/config.js` by hand. It will be filled in automatically during deployment using the method below — so your real Supabase keys never get committed to GitHub.
 
 ## Step 6 — Deploy on Vercel (paste your keys here, not in a file)
 
@@ -57,7 +62,7 @@ You do **not** need to edit `config.js` by hand. It will be filled in automatica
    - `SUPABASE_ANON_KEY` → paste your anon public key
 4. Click **Deploy**
 
-Vercel will automatically run a small build step that writes these values into `config.js` for you — that's what `build.js` and `vercel.json` in this folder do. You never have to open or edit `config.js` yourself.
+Vercel will automatically run a small build step that writes these values into `admin/config.js` for you — that's what `build.js` and `vercel.json` in this folder do. You never have to open or edit `admin/config.js` yourself.
 
 Your live URL will look like `https://noor-billing-pro.vercel.app`.
 
@@ -76,11 +81,17 @@ A sensible default translation is pre-filled, but please review it for accuracy 
 
 
 
-Log in with the email/password you created in Step 3. Every invoice, setting, and login now lives in your real Supabase database — accessible from any device, any staff member, synced automatically.
+## Customizing the landing page
+
+`index.html` (the public page) is plain HTML/CSS — it doesn't pull from Supabase. To change the services list, phone number, working hours, or WhatsApp message, edit the text directly inside `index.html` and push to GitHub again. The WhatsApp number used on all the buttons is set once near the bottom of the file (`const waNumber = '971555449111';`).
+
+## That's it
+
+Once deployed, share `yourdomain.com` with customers and keep `yourdomain.com/admin` for staff. Log in with the email/password you created in Step 3. Every invoice, setting, and login lives in your real Supabase database — accessible from any device, any staff member, synced automatically.
 
 ## Notes
 
 - To add more staff logins later, just add more users in **Authentication → Users** in Supabase.
 - The company logo is baked in as the default. To change it, use the **Settings** page inside the app after logging in — it saves to your Supabase `settings` table.
 - If you deploy without setting the `SUPABASE_URL` / `SUPABASE_ANON_KEY` environment variables in Vercel, the app will show a "Supabase not configured" screen — just add them in Vercel Settings and redeploy.
-- Prefer editing `config.js` by hand instead of using Vercel env vars? That still works too — just paste your URL/key directly into `config.js` before pushing to GitHub, and skip the Environment Variables step in Vercel.
+- Prefer editing `admin/config.js` by hand instead of using Vercel env vars? That still works too — just paste your URL/key directly into `admin/config.js` before pushing to GitHub, and skip the Environment Variables step in Vercel.
